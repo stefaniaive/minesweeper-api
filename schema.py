@@ -22,12 +22,15 @@ class ViewStructure(object):
 
 class MinesweeperSchema(Schema):
     id = fields.UUID()
-    minesStructure = fields.Nested(MinesStructure, attribute="mines_structure")
-    viewStructure = fields.Nested(ViewStructure, attribute="view_structure")
+    minesStructure = fields.Nested(MinesStructure, attribute="mines_structure", load_only=True)
+    viewStructure = fields.Nested(ViewStructure, attribute="view_structure", load_only=True)
 
     @post_load()
     def make_object(self, data):
         return Minesweeper(data['id'], data['mines_structure'], data['view_structure'])
+
+
+minesweeper_schema = MinesweeperSchema()
 
 class MinesweeperBoardSchema(Schema):
     sizeX = fields.Integer(attribute="size_x",)

@@ -1,6 +1,9 @@
 import random
-from helpers import helpers
+from tools.helpers import helpers
 import uuid
+from redis_cli.client import redis_mines_structure, redis_view_structure
+import pickle
+from werkzeug.exceptions import NotFound
 
 class Minesweeper(object):
     id = None
@@ -15,20 +18,25 @@ class Minesweeper(object):
     @staticmethod
     def create(board):
         minesweeper_id = uuid.uuid4()
-        minesweeper = Minesweeper(minesweeper_id, MinesStructure(minesweeper_id, None, board.get_mines_board()), ViewStructure(minesweeper_id, 0, board.get_view_board()))
+        minesweeper_mines = MinesStructure(None, board.get_mines_board())
+        minesweeper_view = ViewStructure(0, board.get_view_board())
 
-        # save instances DB
+        minesweeper = Minesweeper(minesweeper_id, minesweeper_mines,minesweeper_view)
+
+        pickled_minesweeper_mines = pickle.dumps(minesweeper_mines)
+        redis_mines_structure.set(str(minesweeper_id), pickled_minesweeper_mines)
+
+        pickled_minesweeper_view = pickle.dumps(minesweeper_view)
+        redis_view_structure.set(str(minesweeper_id), pickled_minesweeper_view)
+
         return minesweeper
 
     @staticmethod
     def get_minesweeper(id):
-        minesweeper = Minesweeper()
-
-        minesweeper.id = id
-        #minesweeper.mines_structure = DB.get_mines_structure(id)
-        #minesweeper.view_structure = DB.get_view_structure(id)
-
-        return minesweeper
+        try:
+            return Minesweeper(id, pickle.loads(redis_mines_structure.get(str(id))), pickle.loads(redis_view_structure.get(str(id))))
+        except TypeError:
+            raise NotFound()
 
     def turn(self, cell):
         if cell.is_valid_cell(self.mines_structure):
@@ -104,12 +112,10 @@ class MinesweeperCell(object):
         return False
 
 class MinesStructure(object):
-    id = None
     win = None
     board = None
 
-    def __init__(self, id, win, board):
-        self.id = id
+    def __init__(self, win, board):
         self.win = win
         self.board = board
 
@@ -121,8 +127,7 @@ class ViewStructure(object):
     count_viewed = None
     board = None
 
-    def __init__(self, id, count_viewed, board):
-        self.id = id
+    def __init__(self, count_viewed, board):
         self.count_viewed = count_viewed
         self.board = board
 
