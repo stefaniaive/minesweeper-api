@@ -1,4 +1,5 @@
 from marshmallow import Schema, fields, post_load, ValidationError
+from werkzeug.exceptions import BadRequest
 from model import MinesweeperBoard, MinesweeperCell, Minesweeper, MinesStructure, ViewStructure
 
 class MinesStructureSchema(Schema):
@@ -39,13 +40,16 @@ class MinesweeperBoardSchema(Schema):
 
     def validations(self, data):
         if data['size_x'] == 0 or data['size_y'] == 0:
-            raise ValidationError(errors="Size could not be 0")
+            # TO DO : Improve exceptions - More specific
+            raise BadRequest
 
         if data['mines'] > (data['size_x'] * data['size_y']):
-            raise ValidationError(errors="Mines could not be higher than the dimension")
+            # TO DO : Improve exceptions - More specific
+            raise BadRequest
 
     @post_load()
     def make_object(self, data):
+        self.validations(data)
         return MinesweeperBoard(
             data["size_x"],
             data["size_y"],
