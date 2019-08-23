@@ -1,10 +1,11 @@
 from marshmallow import Schema, fields, post_load, ValidationError
-from model import Minesweeper
+from model import MinesweeperBoard
 
-class MinesweeperSchema(Schema):
+class MinesweeperBoardSchema(Schema):
     sizeX = fields.Integer(attribute="size_x")
     sizeY = fields.Integer(attribute="size_y")
     mines = fields.Integer()
+    #minesStructure = fields.List(fields.List(fields.Integer),dump_only=True, required=False, allow_none=True, attribute="mines_structure")
 
     def validations(self, data):
         if data['size_x'] == 0 or data['size_y'] == 0:
@@ -16,11 +17,11 @@ class MinesweeperSchema(Schema):
     @post_load()
     def make_object(self, data, **kwargs):
         self.validations(data)
-        return Minesweeper(
+        return MinesweeperBoard(
             data["size_x"],
             data["size_y"],
             data["mines"]
         )
 
 
-minesweeper_schema = MinesweeperSchema()
+minesweeper_board_schema = MinesweeperBoardSchema()
