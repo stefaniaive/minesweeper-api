@@ -19,10 +19,13 @@ class MinesweeperEntityResource(Resource):
 
     def patch(self, id):
         minesweeper = Minesweeper.get_minesweeper(id)
-        cell = minesweeper_cell_schema.load(request.json).data
+        turned_cells = None
 
-        turned_cells = minesweeper.turn(cell)
-        response = TurnCellResponse(turned_cells, minesweeper.game_winned())
+        if minesweeper.unfinished():
+            cell = minesweeper_cell_schema.load(request.json).data
+            turned_cells = minesweeper.turn(cell)
+
+        response = TurnCellResponse(turned_cells, minesweeper.game_wined(), minesweeper.game_lost())
 
         return make_response(turn_cell_response_schema.dumps(response).data, 200)
 

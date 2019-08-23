@@ -1,7 +1,7 @@
 from marshmallow import Schema, fields, post_load, ValidationError
 from model import MinesweeperBoard, MinesweeperCell, Minesweeper, MinesStructure, ViewStructure
 
-class MinesStructure(object):
+class MinesStructureSchema(Schema):
     id = fields.UUID()
     win = fields.Boolean(allow_none=True)
     board = fields.List(fields.List(fields.Integer))
@@ -11,7 +11,7 @@ class MinesStructure(object):
         return MinesStructure(data["id"], data["win"], data["board"])
 
 
-class ViewStructure(object):
+class ViewStructureSchema(Schema):
     id = fields.UUID()
     countViewed = fields.Integer(attribute="count_viewed")
     board = fields.List(fields.List(fields.Integer))
@@ -22,8 +22,8 @@ class ViewStructure(object):
 
 class MinesweeperSchema(Schema):
     id = fields.UUID()
-    minesStructure = fields.Nested(MinesStructure, attribute="mines_structure", load_only=True)
-    viewStructure = fields.Nested(ViewStructure, attribute="view_structure", load_only=True)
+    minesStructure = fields.Nested(MinesStructureSchema, attribute="mines_structure", load_only=True)
+    viewStructure = fields.Nested(ViewStructureSchema, attribute="view_structure", load_only=True)
 
     @post_load()
     def make_object(self, data):
@@ -59,6 +59,7 @@ minesweeper_board_schema = MinesweeperBoardSchema()
 class MinesweeperCellSchema(Schema):
     posX = fields.Integer(attribute="pos_x")
     posY = fields.Integer(attribute="pos_y")
+    value = fields.Integer()
 
     @post_load()
     def make_object(self, data):
@@ -68,17 +69,10 @@ class MinesweeperCellSchema(Schema):
 minesweeper_cell_schema = MinesweeperCellSchema()
 
 
-class TupleField(fields.Field):
-    def _serialize(self, value, attr, obj):
-        ret = super()._serialize(value, attr, obj)
-        if ret is None:
-            return None
-        return tuple(ret)
-
-
 class TurnCellResponseSchema(Schema):
-    turnedCells = fields.List(TupleField(fields.Integer), attribute="turned_cells")
+    turnedCells = fields.Nested(MinesweeperCellSchema, attribute="turned_cells", many=True)
     wined = fields.Boolean()
+    lost = fields.Boolean()
 
 
 turn_cell_response_schema = TurnCellResponseSchema()

@@ -10,15 +10,15 @@ class Minesweeper(object):
     mines_structure = None
     view_structure = None
 
-    def __init__(self, id, mines, view):
+    def __init__(self, id, mines_structure, view_structure):
         self.id = id
-        self.mines_structure = mines
-        self.view_structure = view
+        self.mines_structure = mines_structure
+        self.view_structure = view_structure
 
     @staticmethod
     def create(board):
         minesweeper_id = uuid.uuid4()
-        minesweeper_mines = MinesStructure(None, board.get_mines_board())
+        minesweeper_mines = MinesStructure(None, board.get_mines_board(), board.get_cant_mines())
         minesweeper_view = ViewStructure(0, board.get_view_board())
 
         minesweeper = Minesweeper(minesweeper_id, minesweeper_mines,minesweeper_view)
@@ -39,22 +39,43 @@ class Minesweeper(object):
             raise NotFound()
 
     def turn(self, cell):
-        if cell.is_valid_cell(self.mines_structure):
-            # turn cell - inc count
-            # if cell == 9 -> set mines_structure.win = false
-            # elif 0 - turn N cells / inc count
-            # add turned cells in tunerd cells[(1,2),(4,5)]
-            # set inc count in view structure - save db
+        turned_cells = []
+        if cell.is_valid_cell(self.view_structure):
+            if not self.view_structure.board[cell.get_row_number()][cell.get_col_number()]:
+                self.view_structure.board[cell.get_row_number()][cell.get_col_number()] = True
+                self.view_structure.count_viewed = self.view_structure.count_viewed + 1
+                cell.set_value(self.mines_structure.board[cell.get_row_number()][cell.get_col_number()])
+                turned_cells.append(cell)
+                # FIX ME / 0 NOT WORKS
+                if self.mines_structure.board[cell.get_row_number()][cell.get_col_number()] == 0:
+                    for row2 in range(helpers.get_max(0, cell.get_row_number() - 1),
+                                      helpers.get_min(self.view_structure.get_sizex_board() - 1, cell.get_row_number() + 1) + 1):
+                        for col2 in range(helpers.get_max(0, cell.get_col_number() - 1),
+                                          helpers.get_min(self.view_structure.get_sizey_board() - 1, cell.get_col_number() + 1) + 1):
+                            if self.mines_structure.board[cell.get_row_number()][cell.get_col_number()] != 9:
+                                self.turn(MinesweeperCell(row2, col2))
+                            else:
+                                self.mines_structure.win = False
 
-            # if view_structure.game winned -> mines_structure.win = True - save db
+        if self.mines_structure.win != False and self.view_structure.game_wined(self.mines_structure):
+            self.mines_structure.win = True
 
-            # return turned cells
-            pass
+        pickled_minesweeper_mines = pickle.dumps(self.mines_structure)
+        redis_mines_structure.set(str(self.id), pickled_minesweeper_mines)
 
-        raise Exception
+        pickled_minesweeper_view = pickle.dumps(self.view_structure)
+        redis_view_structure.set(str(self.id), pickled_minesweeper_view)
+
+        return turned_cells
 
     def game_wined(self):
         return self.mines_structure.game_wined()
+
+    def game_lost(self):
+        return self.mines_structure.game_lost()
+
+    def unfinished(self):
+        return not self.game_wined() and not self.game_wined()
 
 class MinesweeperBoard(object):
     size_x = None
@@ -83,6 +104,9 @@ class MinesweeperBoard(object):
     def get_view_board(self):
         return self.view_board
 
+    def get_cant_mines(self):
+        return self.mines
+
     def load(self):
         for i in range(0, self.mines):
             mine = True
@@ -100,10 +124,21 @@ class MinesweeperBoard(object):
 class MinesweeperCell(object):
     pos_y = None
     pos_x = None
+    value = None
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, value=None):
         self.pos_x = x
         self.pos_y = y
+        self.value = value
+
+    def set_value(self, value):
+        self.value = value
+
+    def get_row_number(self):
+        return self.pos_x
+
+    def get_col_number(self):
+        return self.pos_y
 
     def is_valid_cell(self, structure):
         if self.pos_x < structure.get_sizex_board() and self.pos_y < structure.get_sizey_board():
@@ -111,25 +146,8 @@ class MinesweeperCell(object):
 
         return False
 
-class MinesStructure(object):
-    win = None
+class Structure(object):
     board = None
-
-    def __init__(self, win, board):
-        self.win = win
-        self.board = board
-
-    def game_wined(self):
-        return self.win
-
-class ViewStructure(object):
-    id = None
-    count_viewed = None
-    board = None
-
-    def __init__(self, count_viewed, board):
-        self.count_viewed = count_viewed
-        self.board = board
 
     def get_sizex_board(self):
         return len(self.board[0])
@@ -137,16 +155,40 @@ class ViewStructure(object):
     def get_sizey_board(self):
         return len(self.board)
 
+
+class MinesStructure(Structure):
+    win = None
+    mines = None
+
+    def __init__(self, win, board, mines):
+        self.win = win
+        self.board = board
+        self.mines = mines
+
     def game_wined(self):
-        return self.count_viewed == len(self.board) * len(self.board[0])
+        return self.win == True
+
+    def game_lost(self):
+        return self.win == False
+
+class ViewStructure(Structure):
+    id = None
+    count_viewed = None
+
+    def __init__(self, count_viewed, board):
+        self.count_viewed = count_viewed
+        self.board = board
+
+    def game_wined(self, mines_structure):
+        return self.count_viewed == (len(self.board) * len(self.board[0])) - mines_structure.mines
 
 
 class TurnCellResponse(object):
     turned_cells = None
     wined = None
-    lose = None
+    lost = None
 
-    def __init__(self, turned_cells, wined, lose):
+    def __init__(self, turned_cells, wined, lost):
         self.turned_cells = turned_cells
         self.wined = wined
-        self.lose = lose
+        self.lost = lost
