@@ -63,6 +63,9 @@ Responses:
     - Lost or wined will be True when the game ends. 
     - Turned cells have the list of cells with their values which was turned with the current movement
     
+    404 NOT FOUND
+    
+    - When no exists minesweeper with ID
     
     
 SERVICE NICE TO HAVE:
