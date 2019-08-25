@@ -38,24 +38,24 @@ class Minesweeper(object):
         except TypeError:
             raise NotFound()
 
-    def turn(self, cell):
-        turned_cells = []
+    def turn(self, cell, turned_cells=[]):
         if cell.is_valid_cell(self.view_structure):
             if not self.view_structure.board[cell.get_row_number()][cell.get_col_number()]:
                 self.view_structure.board[cell.get_row_number()][cell.get_col_number()] = True
                 self.view_structure.count_viewed = self.view_structure.count_viewed + 1
                 cell.set_value(self.mines_structure.board[cell.get_row_number()][cell.get_col_number()])
                 turned_cells.append(cell)
-                # FIX ME / 0 NOT WORKS
                 if self.mines_structure.board[cell.get_row_number()][cell.get_col_number()] == 0:
                     for row2 in range(helpers.get_max(0, cell.get_row_number() - 1),
                                       helpers.get_min(self.view_structure.get_sizex_board() - 1, cell.get_row_number() + 1) + 1):
                         for col2 in range(helpers.get_max(0, cell.get_col_number() - 1),
                                           helpers.get_min(self.view_structure.get_sizey_board() - 1, cell.get_col_number() + 1) + 1):
-                            if self.mines_structure.board[cell.get_row_number()][cell.get_col_number()] != 9:
-                                self.turn(MinesweeperCell(row2, col2))
+                            if self.mines_structure.board[row2][col2] != 9:
+                                self.turn(MinesweeperCell(row2, col2), turned_cells)
                             else:
                                 self.mines_structure.win = False
+                if self.mines_structure.board[cell.get_row_number()][cell.get_col_number()] == 9:
+                    self.mines_structure.win = False
 
         if self.mines_structure.win != False and self.view_structure.game_wined(self.mines_structure):
             self.mines_structure.win = True

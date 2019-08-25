@@ -23,7 +23,7 @@ class MinesweeperEntityResource(Resource):
 
         if minesweeper.unfinished():
             cell = minesweeper_cell_schema.load(request.json).data
-            turned_cells = minesweeper.turn(cell)
+            turned_cells = minesweeper.turn(cell,[])
 
         response = TurnCellResponse(turned_cells, minesweeper.game_wined(), minesweeper.game_lost())
 
